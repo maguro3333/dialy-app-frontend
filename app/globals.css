@@ -28,23 +28,76 @@ body {
 
 /* ボタンスタイル */
 .btn-primary {
-  @apply bg-accent text-white font-rounded py-3 px-8 rounded-full shadow-md transition-transform duration-200 hover:scale-105 active:scale-95;
+  background-color: var(--accent);
+  color: white;
+  font-family: var(--font-m-plus-rounded), sans-serif;
+  padding: 0.75rem 2rem;
+  border-radius: 9999px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  transition: transform 0.2s;
+}
+
+.btn-primary:hover {
+  transform: scale(1.05);
+}
+
+.btn-primary:active {
+  transform: scale(0.95);
 }
 
 .btn-secondary {
-  @apply bg-surface text-primary-text font-rounded py-2 px-6 rounded-full border border-secondary-text/20 transition-all duration-200 hover:border-accent hover:text-accent;
+  background-color: var(--surface);
+  color: var(--primary-text);
+  font-family: var(--font-m-plus-rounded), sans-serif;
+  padding: 0.5rem 1.5rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(119, 119, 119, 0.2);
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* カードスタイル */
 .card-base {
-  @apply bg-surface rounded-xl shadow-lg p-6 transition-all duration-300;
+  background-color: var(--surface);
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  padding: 1.5rem;
+  transition: all 0.3s;
 }
 
 .card-hover {
-  @apply card-base hover:shadow-2xl hover:-translate-y-1 cursor-pointer;
+  background-color: var(--surface);
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  padding: 1.5rem;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.card-hover:hover {
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  transform: translateY(-0.25rem);
 }
 
 /* テキストエリアスタイル */
 .textarea-diary {
-  @apply w-full bg-surface border-2 border-secondary-text/20 rounded-lg p-4 font-serif text-primary-text resize-none focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all duration-200;
+  width: 100%;
+  background-color: var(--surface);
+  border: 2px solid rgba(119, 119, 119, 0.2);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  font-family: var(--font-noto-serif), serif;
+  color: var(--primary-text);
+  resize: none;
+  transition: all 0.2s;
+}
+
+.textarea-diary:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(232, 160, 122, 0.2);
 }
