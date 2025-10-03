@@ -33,6 +33,36 @@ export default function Home() {
   const [notifications, setNotifications] = useState<Diary[]>([])
   const [savingDiaryId, setSavingDiaryId] = useState<string | null>(null)
 
+  // コレクション取得関数
+  const fetchSavedDiaries = useCallback(async () => {
+    if (!userId) return
+
+    try {
+      const response = await fetch(`${API_URL}/api/diaries/saved?user_id=${userId}`)
+      if (!response.ok) throw new Error('Failed to fetch saved diaries')
+
+      const diaries: Diary[] = await response.json()
+      setSavedDiaries(diaries)
+    } catch (error) {
+      console.error('Error fetching saved diaries:', error)
+    }
+  }, [userId])
+
+  // 通知取得関数
+  const fetchNotifications = useCallback(async () => {
+    if (!userId) return
+
+    try {
+      const response = await fetch(`${API_URL}/api/users/notifications?user_id=${userId}`)
+      if (!response.ok) throw new Error('Failed to fetch notifications')
+
+      const notifs: Diary[] = await response.json()
+      setNotifications(notifs)
+    } catch (error) {
+      console.error('Error fetching notifications:', error)
+    }
+  }, [userId])
+
   // 今日の投稿・受取・保存状態をlocalStorageから復元
   useEffect(() => {
     if (!userId) return
@@ -162,34 +192,6 @@ export default function Home() {
       setSavingDiaryId(null)
     }
   }
-
-  const fetchSavedDiaries = useCallback(async () => {
-    if (!userId) return
-
-    try {
-      const response = await fetch(`${API_URL}/api/diaries/saved?user_id=${userId}`)
-      if (!response.ok) throw new Error('Failed to fetch saved diaries')
-
-      const diaries: Diary[] = await response.json()
-      setSavedDiaries(diaries)
-    } catch (error) {
-      console.error('Error fetching saved diaries:', error)
-    }
-  }, [userId])
-
-  const fetchNotifications = useCallback(async () => {
-    if (!userId) return
-
-    try {
-      const response = await fetch(`${API_URL}/api/users/notifications?user_id=${userId}`)
-      if (!response.ok) throw new Error('Failed to fetch notifications')
-
-      const notifs: Diary[] = await response.json()
-      setNotifications(notifs)
-    } catch (error) {
-      console.error('Error fetching notifications:', error)
-    }
-  }, [userId])
 
   if (loading) {
     return (
