@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useUser } from '@/hooks/useUser'
 
-// 動的レンダリングを強制
 export const dynamic = 'force-dynamic'
 
 const API_URL = 'https://dialy-app-backend.onrender.com'
@@ -32,15 +31,13 @@ export default function Home() {
   const [savedDiaries, setSavedDiaries] = useState<Diary[]>([])
   const [notifications, setNotifications] = useState<Diary[]>([])
   const [savingDiaryId, setSavingDiaryId] = useState<string | null>(null)
+  const [selectedDiary, setSelectedDiary] = useState<Diary | null>(null)
 
-  // コレクション取得関数
   const fetchSavedDiaries = useCallback(async () => {
     if (!userId) return
-
     try {
       const response = await fetch(`${API_URL}/api/diaries/saved?user_id=${userId}`)
       if (!response.ok) throw new Error('Failed to fetch saved diaries')
-
       const diaries: Diary[] = await response.json()
       setSavedDiaries(diaries)
     } catch (error) {
@@ -48,14 +45,11 @@ export default function Home() {
     }
   }, [userId])
 
-  // 通知取得関数
   const fetchNotifications = useCallback(async () => {
     if (!userId) return
-
     try {
       const response = await fetch(`${API_URL}/api/users/notifications?user_id=${userId}`)
       if (!response.ok) throw new Error('Failed to fetch notifications')
-
       const notifs: Diary[] = await response.json()
       setNotifications(notifs)
     } catch (error) {
@@ -63,10 +57,8 @@ export default function Home() {
     }
   }, [userId])
 
-  // 今日の投稿・受取・保存状態をlocalStorageから復元
   useEffect(() => {
     if (!userId) return
-
     const today = new Date().toDateString()
     const lastPostedDate = localStorage.getItem(`lastPosted_${userId}`)
     const lastReceivedDate = localStorage.getItem(`lastReceived_${userId}`)
@@ -76,14 +68,12 @@ export default function Home() {
     if (lastReceivedDate === today) setHasReceivedToday(true)
     if (lastSavedDate === today) setHasSavedToday(true)
 
-    // コレクションと通知を自動読み込み
     fetchSavedDiaries()
     fetchNotifications()
   }, [userId, fetchSavedDiaries, fetchNotifications])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!userId || !content.trim()) {
       setMessage('日記の内容を入力してください')
       return
@@ -96,26 +86,20 @@ export default function Home() {
       const response = await fetch(`${API_URL}/api/diaries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: userId,
-          content: content.trim(),
-        }),
+        body: JSON.stringify({ user_id: userId, content: content.trim() }),
       })
 
-      if (!response.ok) throw new Error('Failed to create diary')
+      if (!response.ok) throw new Error('Failed to post diary')
 
       const today = new Date().toDateString()
       localStorage.setItem(`lastPosted_${userId}`, today)
       setHasPostedToday(true)
-      setMessage('日記を投稿しました！')
       setContent('')
+      setMessage('日記を投稿しました')
 
-      setTimeout(() => {
-        setActiveTab('read')
-        setMessage('')
-      }, 1500)
+      setTimeout(() => setMessage(''), 3000)
     } catch (error) {
-      console.error('Error creating diary:', error)
+      console.error('Error posting diary:', error)
       setMessage('投稿に失敗しました')
     } finally {
       setSubmitting(false)
@@ -123,7 +107,7 @@ export default function Home() {
   }
 
   const handleReceiveDiaries = async () => {
-    if (!userId) return
+    if (!userId || hasReceivedToday) return
 
     setFetchingDiaries(true)
     setMessage('')
@@ -138,22 +122,17 @@ export default function Home() {
       const today = new Date().toDateString()
       localStorage.setItem(`lastReceived_${userId}`, today)
       setHasReceivedToday(true)
-
-      if (diaries.length === 0) {
-        setMessage('まだ日記が配信されていません')
-      } else {
-        setMessage(`${diaries.length}件の日記を受け取りました`)
-      }
+      setActiveTab('read')
     } catch (error) {
-      console.error('Error fetching diaries:', error)
-      setMessage('日記の取得に失敗しました')
+      console.error('Error receiving diaries:', error)
+      setMessage('日記の受け取りに失敗しました')
     } finally {
       setFetchingDiaries(false)
     }
   }
 
   const handleSaveDiary = async (diaryId: string) => {
-    if (!userId || hasSavedToday) return
+    if (!userId || hasSavedToday || savingDiaryId) return
 
     setSavingDiaryId(diaryId)
     setMessage('')
@@ -162,23 +141,19 @@ export default function Home() {
       const response = await fetch(`${API_URL}/api/diaries/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: userId,
-          diary_id: diaryId,
-        }),
+        body: JSON.stringify({ user_id: userId, diary_id: diaryId }),
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.detail || 'Failed to save diary')
+        const errorData = await response.json()
+        throw new Error(errorData.detail || 'Failed to save diary')
       }
 
       const today = new Date().toDateString()
       localStorage.setItem(`lastSaved_${userId}`, today)
       setHasSavedToday(true)
-      setMessage('日記をコレクションに保存しました！')
+      setMessage('この日記をコレクションに保存しました')
 
-      // コレクションを再取得
       await fetchSavedDiaries()
 
       setTimeout(() => {
@@ -195,273 +170,314 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">読み込み中...</p>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-secondary-text font-rounded">読み込み中...</div>
+      </div>
+    )
+  }
+
+  // 詳細モーダル
+  if (selectedDiary) {
+    return (
+      <div className="min-h-screen bg-background py-8 px-4">
+        <div className="max-w-3xl mx-auto">
+          <button
+            onClick={() => setSelectedDiary(null)}
+            className="mb-6 text-secondary-text hover:text-accent transition-colors font-rounded flex items-center gap-2"
+          >
+            <span>←</span> 戻る
+          </button>
+
+          <article className="card-base">
+            <div className="prose prose-lg max-w-none">
+              <p className="text-primary-text leading-relaxed whitespace-pre-wrap font-serif text-lg">
+                {selectedDiary.content}
+              </p>
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-secondary-text/10">
+              <p className="text-sm text-secondary-text font-rounded">
+                {new Date(selectedDiary.created_at).toLocaleDateString('ja-JP', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </p>
+              {selectedDiary.saved_count !== undefined && selectedDiary.saved_count > 0 && (
+                <p className="text-sm text-accent font-rounded mt-2">
+                  {selectedDiary.saved_count}人に保存されました
+                </p>
+              )}
+            </div>
+          </article>
+
+          {activeTab === 'read' && !hasSavedToday && (
+            <div className="fixed bottom-8 left-0 right-0 flex justify-center px-4">
+              <button
+                onClick={() => handleSaveDiary(selectedDiary.id)}
+                disabled={savingDiaryId !== null}
+                className="btn-primary flex items-center gap-2 shadow-2xl"
+              >
+                <span>📖</span>
+                {savingDiaryId === selectedDiary.id ? '保存中...' : 'この日記を保存する'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* ヘッダー */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <header className="bg-surface shadow-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-800">匿名日記</h1>
+            <h1 className="text-xl font-rounded font-bold text-primary-text">日記交換</h1>
             {notifications.length > 0 && (
-              <div className="relative">
-                <button
-                  onClick={() => setActiveTab('collection')}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors relative"
-                >
-                  <span className="text-2xl">🔔</span>
-                  <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {notifications.length}
-                  </span>
-                </button>
-              </div>
+              <button
+                onClick={() => setActiveTab('collection')}
+                className="relative text-accent"
+              >
+                <span className="text-2xl">🔔</span>
+                <span className="absolute -top-1 -right-1 bg-accent text-white text-xs font-rounded w-5 h-5 rounded-full flex items-center justify-center">
+                  {notifications.length}
+                </span>
+              </button>
             )}
           </div>
         </div>
       </header>
 
+      {/* メッセージ表示 */}
+      {message && (
+        <div className="max-w-4xl mx-auto px-4 mt-4">
+          <div className="bg-accent-light/30 text-accent px-4 py-3 rounded-lg font-rounded text-center">
+            {message}
+          </div>
+        </div>
+      )}
+
       {/* タブナビゲーション */}
-      <div className="bg-white border-b border-gray-200 sticky top-16 z-10">
-        <div className="max-w-4xl mx-auto flex">
+      <nav className="max-w-4xl mx-auto px-4 mt-6">
+        <div className="flex gap-2 bg-surface rounded-full p-1 shadow-md">
           <button
             onClick={() => setActiveTab('write')}
-            className={`flex-1 py-3 text-center font-medium transition-colors ${
+            className={`flex-1 py-3 px-4 rounded-full font-rounded transition-all ${
               activeTab === 'write'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-accent text-white shadow-md'
+                : 'text-secondary-text hover:text-primary-text'
             }`}
           >
             書く
           </button>
           <button
             onClick={() => setActiveTab('read')}
-            className={`flex-1 py-3 text-center font-medium transition-colors ${
+            className={`flex-1 py-3 px-4 rounded-full font-rounded transition-all ${
               activeTab === 'read'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-accent text-white shadow-md'
+                : 'text-secondary-text hover:text-primary-text'
             }`}
           >
             読む
           </button>
           <button
             onClick={() => setActiveTab('collection')}
-            className={`flex-1 py-3 text-center font-medium transition-colors relative ${
+            className={`flex-1 py-3 px-4 rounded-full font-rounded transition-all relative ${
               activeTab === 'collection'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-accent text-white shadow-md'
+                : 'text-secondary-text hover:text-primary-text'
             }`}
           >
             コレクション
             {savedDiaries.length > 0 && (
-              <span className="ml-1 text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">
-                {savedDiaries.length}
-              </span>
+              <span className="ml-1 text-xs">({savedDiaries.length})</span>
             )}
           </button>
         </div>
-      </div>
+      </nav>
 
-      <main className="max-w-4xl mx-auto px-4 py-6">
-        {/* 書くセクション */}
+      {/* メインコンテンツ */}
+      <main className="max-w-4xl mx-auto px-4 py-8 pb-24">
+        {/* 書くタブ */}
         {activeTab === 'write' && (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">今日の日記</h2>
-
+          <div className="space-y-6">
             {hasPostedToday ? (
-              <div className="text-center py-12">
-                <div className="text-5xl mb-4">✅</div>
-                <p className="text-lg font-medium text-gray-700 mb-2">今日の日記は投稿済みです</p>
-                <p className="text-sm text-gray-500">また明日お待ちしています</p>
+              <div className="card-base text-center">
+                <p className="text-2xl mb-4">✨</p>
+                <h2 className="text-xl font-rounded font-bold text-primary-text mb-2">
+                  今日の日記を投稿しました
+                </h2>
+                <p className="text-secondary-text font-rounded">
+                  明日、また新しい日記を綴りましょう
+                </p>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="w-full h-64 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-800"
-                  placeholder="今日の出来事や気持ちを書いてみましょう..."
-                  disabled={submitting}
-                />
-                <button
-                  type="submit"
-                  disabled={submitting || !content.trim()}
-                  className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-medium text-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors active:scale-95"
-                >
-                  {submitting ? '投稿中...' : '日記を投稿する'}
-                </button>
-              </form>
+              <div className="card-base">
+                <h2 className="text-lg font-rounded font-bold text-primary-text mb-4">
+                  今日の出来事を、そっと綴ってみる...
+                </h2>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <textarea
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder="ここに、あなたの今日を書いてください。&#10;&#10;誰かが、あなたの言葉にそっと触れるかもしれません。"
+                    className="textarea-diary min-h-[300px]"
+                    disabled={submitting}
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={submitting || !content.trim()}
+                      className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {submitting ? '投稿中...' : '日記を投稿する'}
+                    </button>
+                  </div>
+                </form>
+              </div>
             )}
-          </div>
-        )}
 
-        {/* 読むセクション */}
-        {activeTab === 'read' && (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">届いた日記</h2>
-
-            {!hasReceivedToday ? (
-              <div className="text-center py-8">
-                <div className="text-5xl mb-4">📮</div>
-                <p className="text-gray-600 mb-6">
-                  {hasPostedToday
-                    ? '日記を受け取ってみましょう'
-                    : '日記を投稿すると、他の人の日記を受け取れます'}
-                </p>
+            {hasPostedToday && !hasReceivedToday && (
+              <div className="card-base text-center">
+                <h3 className="font-rounded font-bold text-primary-text mb-4">
+                  今日届いた日記を受け取る
+                </h3>
                 <button
                   onClick={handleReceiveDiaries}
-                  disabled={fetchingDiaries || !hasPostedToday}
-                  className="bg-green-600 text-white py-4 px-8 rounded-lg font-medium text-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors active:scale-95"
+                  disabled={fetchingDiaries}
+                  className="btn-primary disabled:opacity-50"
                 >
-                  {fetchingDiaries ? '取得中...' : '日記を受け取る'}
+                  {fetchingDiaries ? '受け取り中...' : '5つの日記を受け取る'}
                 </button>
-                {!hasPostedToday && (
-                  <p className="text-xs text-gray-400 mt-3">※ まず日記を投稿してください</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 読むタブ */}
+        {activeTab === 'read' && (
+          <div className="space-y-4">
+            {!hasReceivedToday ? (
+              <div className="card-base text-center">
+                <p className="text-2xl mb-4">📬</p>
+                <h2 className="text-xl font-rounded font-bold text-primary-text mb-2">
+                  まだ日記を受け取っていません
+                </h2>
+                <p className="text-secondary-text font-rounded mb-6">
+                  日記を投稿すると、誰かの日記を受け取ることができます
+                </p>
+                {hasPostedToday ? (
+                  <button
+                    onClick={handleReceiveDiaries}
+                    disabled={fetchingDiaries}
+                    className="btn-primary disabled:opacity-50"
+                  >
+                    {fetchingDiaries ? '受け取り中...' : '日記を受け取る'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setActiveTab('write')}
+                    className="btn-primary"
+                  >
+                    日記を書く
+                  </button>
                 )}
               </div>
-            ) : receivedDiaries.length > 0 ? (
-              <div className="space-y-4">
-                {!hasSavedToday && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                    <p className="text-sm text-yellow-800">
-                      💡 気に入った日記を1つだけ選んで、コレクションに保存できます
-                    </p>
-                  </div>
-                )}
-                {receivedDiaries.map((diary, index) => (
-                  <div
-                    key={diary.id}
-                    className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-100"
-                  >
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-medium text-blue-600">日記 #{index + 1}</span>
-                      <span className="text-xs text-gray-400">
-                        {new Date(diary.created_at).toLocaleDateString('ja-JP')}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed mb-3">
-                      {diary.content}
-                    </p>
-                    {!hasSavedToday && (
-                      <button
-                        onClick={() => handleSaveDiary(diary.id)}
-                        disabled={savingDiaryId === diary.id}
-                        className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:bg-gray-400 transition-colors active:scale-95"
-                      >
-                        {savingDiaryId === diary.id ? '保存中...' : '💾 この日記を保存する'}
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {hasSavedToday && (
-                  <div className="text-center py-4 text-sm text-gray-500">
-                    今日は既に1つ保存済みです
-                  </div>
-                )}
+            ) : receivedDiaries.length === 0 ? (
+              <div className="card-base text-center">
+                <p className="text-secondary-text font-rounded">
+                  今日お届けする日記がありませんでした
+                </p>
               </div>
             ) : (
-              <div className="text-center py-12">
-                <div className="text-5xl mb-4">📭</div>
-                <p className="text-gray-500">まだ日記が配信されていません</p>
-              </div>
+              <>
+                <h2 className="text-lg font-rounded font-bold text-primary-text mb-4 px-2">
+                  今日届いた日記
+                </h2>
+                {receivedDiaries.map((diary) => (
+                  <article
+                    key={diary.id}
+                    onClick={() => setSelectedDiary(diary)}
+                    className="card-hover"
+                  >
+                    <p className="text-primary-text font-serif leading-relaxed line-clamp-3">
+                      {diary.content}
+                    </p>
+                    <p className="text-sm text-secondary-text font-rounded mt-4">
+                      {new Date(diary.created_at).toLocaleDateString('ja-JP')}
+                    </p>
+                  </article>
+                ))}
+                {!hasSavedToday && (
+                  <p className="text-center text-secondary-text text-sm font-rounded mt-8">
+                    心に残った日記を1つ、保存することができます
+                  </p>
+                )}
+              </>
             )}
           </div>
         )}
 
-        {/* コレクションセクション */}
+        {/* コレクションタブ */}
         {activeTab === 'collection' && (
           <div className="space-y-6">
-            {/* 通知エリア */}
             {notifications.length > 0 && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-semibold mb-4 text-gray-800 flex items-center">
-                  🔔 通知
-                  <span className="ml-2 text-sm bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
-                    {notifications.length}
-                  </span>
+              <div className="space-y-4">
+                <h2 className="text-lg font-rounded font-bold text-primary-text px-2 flex items-center gap-2">
+                  <span>🔔</span> あなたの日記が保存されました
                 </h2>
-                <div className="space-y-3">
-                  {notifications.map((notif) => (
-                    <div
-                      key={notif.id}
-                      className="p-4 bg-gradient-to-r from-pink-50 to-rose-50 rounded-lg border border-pink-200"
-                    >
-                      <p className="text-sm font-medium text-pink-900 mb-2">
-                        あなたの日記が {notif.saved_count} 人に保存されました！
+                {notifications.map((diary) => (
+                  <article
+                    key={diary.id}
+                    onClick={() => setSelectedDiary(diary)}
+                    className="card-hover border-2 border-accent/20"
+                  >
+                    <p className="text-primary-text font-serif leading-relaxed line-clamp-3">
+                      {diary.content}
+                    </p>
+                    <div className="flex justify-between items-center mt-4">
+                      <p className="text-sm text-secondary-text font-rounded">
+                        {new Date(diary.created_at).toLocaleDateString('ja-JP')}
                       </p>
-                      <p className="text-xs text-gray-600 line-clamp-2">{notif.content}</p>
-                      <p className="text-xs text-gray-400 mt-2">
-                        {new Date(notif.created_at).toLocaleDateString('ja-JP')}
+                      <p className="text-sm text-accent font-rounded font-bold">
+                        {diary.saved_count}人が保存
                       </p>
                     </div>
-                  ))}
-                </div>
+                  </article>
+                ))}
               </div>
             )}
 
-            {/* 保存した日記 */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4 text-gray-800">
-                保存した日記
-                {savedDiaries.length > 0 && (
-                  <span className="ml-2 text-sm text-gray-500">({savedDiaries.length}件)</span>
-                )}
+            <div className="space-y-4">
+              <h2 className="text-lg font-rounded font-bold text-primary-text px-2 flex items-center gap-2">
+                <span>📖</span> 保存した日記
               </h2>
-
-              {savedDiaries.length > 0 ? (
-                <div className="space-y-4">
-                  {savedDiaries.map((diary) => (
-                    <div
-                      key={diary.id}
-                      className="p-4 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg border border-emerald-200"
-                    >
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-medium text-emerald-700">💾 保存済み</span>
-                        <span className="text-xs text-gray-400">
-                          {new Date(diary.saved_at || diary.created_at).toLocaleDateString('ja-JP')}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                        {diary.content}
-                      </p>
-                    </div>
-                  ))}
+              {savedDiaries.length === 0 ? (
+                <div className="card-base text-center">
+                  <p className="text-2xl mb-4">📚</p>
+                  <p className="text-secondary-text font-rounded">
+                    まだ保存した日記がありません
+                  </p>
                 </div>
               ) : (
-                <div className="text-center py-12">
-                  <div className="text-5xl mb-4">📚</div>
-                  <p className="text-gray-500 mb-2">まだ日記を保存していません</p>
-                  <p className="text-xs text-gray-400">気に入った日記を保存してコレクションを作りましょう</p>
-                </div>
+                savedDiaries.map((diary) => (
+                  <article
+                    key={diary.id}
+                    onClick={() => setSelectedDiary(diary)}
+                    className="card-hover bg-gradient-to-br from-surface to-accent-light/10"
+                  >
+                    <p className="text-primary-text font-serif leading-relaxed line-clamp-3">
+                      {diary.content}
+                    </p>
+                    <p className="text-sm text-secondary-text font-rounded mt-4">
+                      {new Date(diary.created_at).toLocaleDateString('ja-JP')}
+                    </p>
+                  </article>
+                ))
               )}
             </div>
-          </div>
-        )}
-
-        {/* メッセージ表示 */}
-        {message && (
-          <div
-            className={`mt-6 p-4 rounded-lg text-center font-medium ${
-              message.includes('失敗')
-                ? 'bg-red-50 text-red-700 border border-red-200'
-                : 'bg-green-50 text-green-700 border border-green-200'
-            }`}
-          >
-            {message}
-          </div>
-        )}
-
-        {/* フッター情報 */}
-        {userId && (
-          <div className="mt-8 text-center">
-            <p className="text-xs text-gray-400">User ID: {userId.slice(0, 8)}...</p>
           </div>
         )}
       </main>

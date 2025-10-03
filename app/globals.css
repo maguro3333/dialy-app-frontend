@@ -1,26 +1,50 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F7F3EE;
+  --surface: #FFFFFF;
+  --primary-text: #333333;
+  --secondary-text: #777777;
+  --accent: #E8A07A;
+  --accent-light: #F5C9AD;
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-surface: var(--surface);
+  --color-primary-text: var(--primary-text);
+  --color-secondary-text: var(--secondary-text);
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --font-serif: var(--font-noto-serif);
+  --font-rounded: var(--font-m-plus-rounded);
 }
 
 body {
   background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--primary-text);
+  font-family: var(--font-noto-serif), serif;
+}
+
+/* ボタンスタイル */
+.btn-primary {
+  @apply bg-accent text-white font-rounded py-3 px-8 rounded-full shadow-md transition-transform duration-200 hover:scale-105 active:scale-95;
+}
+
+.btn-secondary {
+  @apply bg-surface text-primary-text font-rounded py-2 px-6 rounded-full border border-secondary-text/20 transition-all duration-200 hover:border-accent hover:text-accent;
+}
+
+/* カードスタイル */
+.card-base {
+  @apply bg-surface rounded-xl shadow-lg p-6 transition-all duration-300;
+}
+
+.card-hover {
+  @apply card-base hover:shadow-2xl hover:-translate-y-1 cursor-pointer;
+}
+
+/* テキストエリアスタイル */
+.textarea-diary {
+  @apply w-full bg-surface border-2 border-secondary-text/20 rounded-lg p-4 font-serif text-primary-text resize-none focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all duration-200;
 }
