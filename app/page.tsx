@@ -3,6 +3,9 @@
 import { useState } from 'react'
 import { useUser } from '@/hooks/useUser'
 
+// 動的レンダリングを強制
+export const dynamic = 'force-dynamic'
+
 const API_URL = 'https://dialy-app-backend.onrender.com'
 
 interface Diary {
