@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useUser } from '@/hooks/useUser'
 
 // 動的レンダリングを強制
@@ -49,7 +49,7 @@ export default function Home() {
     // コレクションと通知を自動読み込み
     fetchSavedDiaries()
     fetchNotifications()
-  }, [userId])
+  }, [userId, fetchSavedDiaries, fetchNotifications])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -155,15 +155,15 @@ export default function Home() {
         setActiveTab('collection')
         setMessage('')
       }, 1500)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving diary:', error)
-      setMessage(error.message || '保存に失敗しました')
+      setMessage(error instanceof Error ? error.message : '保存に失敗しました')
     } finally {
       setSavingDiaryId(null)
     }
   }
 
-  const fetchSavedDiaries = async () => {
+  const fetchSavedDiaries = useCallback(async () => {
     if (!userId) return
 
     try {
@@ -175,9 +175,9 @@ export default function Home() {
     } catch (error) {
       console.error('Error fetching saved diaries:', error)
     }
-  }
+  }, [userId])
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!userId) return
 
     try {
@@ -189,7 +189,7 @@ export default function Home() {
     } catch (error) {
       console.error('Error fetching notifications:', error)
     }
-  }
+  }, [userId])
 
   if (loading) {
     return (
