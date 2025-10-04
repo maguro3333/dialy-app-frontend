@@ -29,6 +29,7 @@ export default function Home() {
   const [hasReceivedToday, setHasReceivedToday] = useState(false)
   const [hasSavedToday, setHasSavedToday] = useState(false)
   const [savedDiaries, setSavedDiaries] = useState<Diary[]>([])
+  const [myDiaries, setMyDiaries] = useState<Diary[]>([])
   const [notifications, setNotifications] = useState<Diary[]>([])
   const [savingDiaryId, setSavingDiaryId] = useState<string | null>(null)
   const [selectedDiary, setSelectedDiary] = useState<Diary | null>(null)
@@ -57,6 +58,18 @@ export default function Home() {
     }
   }, [userId])
 
+  const fetchMyDiaries = useCallback(async () => {
+    if (!userId) return
+    try {
+      const response = await fetch(`${API_URL}/api/diaries/my?user_id=${userId}`)
+      if (!response.ok) throw new Error('Failed to fetch my diaries')
+      const diaries: Diary[] = await response.json()
+      setMyDiaries(diaries)
+    } catch (error) {
+      console.error('Error fetching my diaries:', error)
+    }
+  }, [userId])
+
   useEffect(() => {
     if (!userId) return
     const today = new Date().toDateString()
@@ -70,7 +83,8 @@ export default function Home() {
 
     fetchSavedDiaries()
     fetchNotifications()
-  }, [userId, fetchSavedDiaries, fetchNotifications])
+    fetchMyDiaries()
+  }, [userId, fetchSavedDiaries, fetchNotifications, fetchMyDiaries])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,6 +111,9 @@ export default function Home() {
       setContent('')
       setMessage('日記を投稿しました')
 
+      // 自分の日記履歴を更新
+      await fetchMyDiaries()
+
       setTimeout(() => setMessage(''), 3000)
     } catch (error) {
       console.error('Error posting diary:', error)
@@ -107,7 +124,7 @@ export default function Home() {
   }
 
   const handleReceiveDiaries = async () => {
-    if (!userId || hasReceivedToday) return
+    if (!userId) return
 
     setFetchingDiaries(true)
     setMessage('')
@@ -339,11 +356,14 @@ export default function Home() {
               </div>
             )}
 
-            {hasPostedToday && !hasReceivedToday && (
+            {!hasReceivedToday && (
               <div className="card-base text-center">
                 <h3 className="font-rounded font-bold text-primary-text mb-4">
-                  今日届いた日記を受け取る
+                  誰かの日記を受け取る
                 </h3>
+                <p className="text-secondary-text font-rounded text-sm mb-4">
+                  ランダムに5つの日記をお届けします
+                </p>
                 <button
                   onClick={handleReceiveDiaries}
                   disabled={fetchingDiaries}
@@ -366,24 +386,15 @@ export default function Home() {
                   まだ日記を受け取っていません
                 </h2>
                 <p className="text-secondary-text font-rounded mb-6">
-                  日記を投稿すると、誰かの日記を受け取ることができます
+                  ランダムに5つの日記をお届けします
                 </p>
-                {hasPostedToday ? (
-                  <button
-                    onClick={handleReceiveDiaries}
-                    disabled={fetchingDiaries}
-                    className="btn-primary disabled:opacity-50"
-                  >
-                    {fetchingDiaries ? '受け取り中...' : '日記を受け取る'}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setActiveTab('write')}
-                    className="btn-primary"
-                  >
-                    日記を書く
-                  </button>
-                )}
+                <button
+                  onClick={handleReceiveDiaries}
+                  disabled={fetchingDiaries}
+                  className="btn-primary disabled:opacity-50"
+                >
+                  {fetchingDiaries ? '受け取り中...' : '5つの日記を受け取る'}
+                </button>
               </div>
             ) : receivedDiaries.length === 0 ? (
               <div className="card-base text-center">
@@ -449,6 +460,42 @@ export default function Home() {
                 ))}
               </div>
             )}
+
+            <div className="space-y-4">
+              <h2 className="text-lg font-rounded font-bold text-primary-text px-2 flex items-center gap-2">
+                <span>📝</span> 自分が書いた日記
+              </h2>
+              {myDiaries.length === 0 ? (
+                <div className="card-base text-center">
+                  <p className="text-2xl mb-4">✍️</p>
+                  <p className="text-secondary-text font-rounded">
+                    まだ日記を書いていません
+                  </p>
+                </div>
+              ) : (
+                myDiaries.map((diary) => (
+                  <article
+                    key={diary.id}
+                    onClick={() => setSelectedDiary(diary)}
+                    className="card-hover bg-gradient-to-br from-surface to-accent/5"
+                  >
+                    <p className="text-primary-text font-serif leading-relaxed line-clamp-3">
+                      {diary.content}
+                    </p>
+                    <div className="flex justify-between items-center mt-4">
+                      <p className="text-sm text-secondary-text font-rounded">
+                        {new Date(diary.created_at).toLocaleDateString('ja-JP')}
+                      </p>
+                      {diary.saved_count > 0 && (
+                        <p className="text-sm text-accent font-rounded">
+                          {diary.saved_count}人が保存
+                        </p>
+                      )}
+                    </div>
+                  </article>
+                ))
+              )}
+            </div>
 
             <div className="space-y-4">
               <h2 className="text-lg font-rounded font-bold text-primary-text px-2 flex items-center gap-2">
