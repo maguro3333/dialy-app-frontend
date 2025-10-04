@@ -26,7 +26,7 @@ export default function Home() {
   const [receivedDiaries, setReceivedDiaries] = useState<Diary[]>([])
   const [fetchingDiaries, setFetchingDiaries] = useState(false)
   const [hasPostedToday, setHasPostedToday] = useState(false)
-  const [hasReceivedToday, setHasReceivedToday] = useState(false)
+  const [receivedCount, setReceivedCount] = useState(0)
   const [hasSavedToday, setHasSavedToday] = useState(false)
   const [savedDiaries, setSavedDiaries] = useState<Diary[]>([])
   const [myDiaries, setMyDiaries] = useState<Diary[]>([])
@@ -76,9 +76,18 @@ export default function Home() {
     const lastPostedDate = localStorage.getItem(`lastPosted_${userId}`)
     const lastReceivedDate = localStorage.getItem(`lastReceived_${userId}`)
     const lastSavedDate = localStorage.getItem(`lastSaved_${userId}`)
+    const receivedCountStr = localStorage.getItem(`receivedCount_${userId}`)
 
     if (lastPostedDate === today) setHasPostedToday(true)
-    if (lastReceivedDate === today) setHasReceivedToday(true)
+
+    // 受け取り回数を復元（同じ日付なら回数を復元、違う日なら0にリセット）
+    if (lastReceivedDate === today && receivedCountStr) {
+      setReceivedCount(parseInt(receivedCountStr, 10))
+    } else {
+      setReceivedCount(0)
+      localStorage.removeItem(`receivedCount_${userId}`)
+    }
+
     if (lastSavedDate === today) setHasSavedToday(true)
 
     fetchSavedDiaries()
@@ -124,7 +133,7 @@ export default function Home() {
   }
 
   const handleReceiveDiaries = async () => {
-    if (!userId) return
+    if (!userId || receivedCount >= 5) return
 
     setFetchingDiaries(true)
     setMessage('')
@@ -133,13 +142,28 @@ export default function Home() {
       const response = await fetch(`${API_URL}/api/diaries/today?user_id=${userId}`)
       if (!response.ok) throw new Error('Failed to fetch diaries')
 
-      const diaries: Diary[] = await response.json()
-      setReceivedDiaries(diaries)
+      const newDiaries: Diary[] = await response.json()
+
+      if (newDiaries.length === 0) {
+        setMessage('今日お届けする日記がありません')
+        return
+      }
+
+      // 既存の日記に追加
+      setReceivedDiaries([...receivedDiaries, ...newDiaries])
+
+      // 受け取り回数を更新
+      const newCount = receivedCount + 1
+      setReceivedCount(newCount)
 
       const today = new Date().toDateString()
       localStorage.setItem(`lastReceived_${userId}`, today)
-      setHasReceivedToday(true)
+      localStorage.setItem(`receivedCount_${userId}`, newCount.toString())
+
+      setMessage(`日記を受け取りました (${newCount}/5)`)
       setActiveTab('read')
+
+      setTimeout(() => setMessage(''), 3000)
     } catch (error) {
       console.error('Error receiving diaries:', error)
       setMessage('日記の受け取りに失敗しました')
@@ -356,21 +380,33 @@ export default function Home() {
               </div>
             )}
 
-            {!hasReceivedToday && (
+            {receivedCount < 5 && (
               <div className="card-base text-center">
                 <h3 className="font-rounded font-bold text-primary-text mb-4">
                   誰かの日記を受け取る
                 </h3>
                 <p className="text-secondary-text font-rounded text-sm mb-4">
-                  ランダムに5つの日記をお届けします
+                  今日はあと {5 - receivedCount} 回受け取ることができます
                 </p>
                 <button
                   onClick={handleReceiveDiaries}
-                  disabled={fetchingDiaries}
+                  disabled={fetchingDiaries || receivedCount >= 5}
                   className="btn-primary disabled:opacity-50"
                 >
-                  {fetchingDiaries ? '受け取り中...' : '5つの日記を受け取る'}
+                  {fetchingDiaries ? '受け取り中...' : '日記を1つ受け取る'}
                 </button>
+              </div>
+            )}
+
+            {receivedCount >= 5 && (
+              <div className="card-base text-center">
+                <p className="text-2xl mb-4">✅</p>
+                <h3 className="font-rounded font-bold text-primary-text mb-2">
+                  今日の受け取り完了
+                </h3>
+                <p className="text-secondary-text font-rounded">
+                  明日また新しい日記と出会えます
+                </p>
               </div>
             )}
           </div>
@@ -379,34 +415,39 @@ export default function Home() {
         {/* 読むタブ */}
         {activeTab === 'read' && (
           <div className="space-y-4">
-            {!hasReceivedToday ? (
+            {receivedDiaries.length === 0 ? (
               <div className="card-base text-center">
                 <p className="text-2xl mb-4">📬</p>
                 <h2 className="text-xl font-rounded font-bold text-primary-text mb-2">
                   まだ日記を受け取っていません
                 </h2>
                 <p className="text-secondary-text font-rounded mb-6">
-                  ランダムに5つの日記をお届けします
+                  1日に5回、1つずつ日記を受け取れます
                 </p>
                 <button
                   onClick={handleReceiveDiaries}
-                  disabled={fetchingDiaries}
+                  disabled={fetchingDiaries || receivedCount >= 5}
                   className="btn-primary disabled:opacity-50"
                 >
-                  {fetchingDiaries ? '受け取り中...' : '5つの日記を受け取る'}
+                  {fetchingDiaries ? '受け取り中...' : '日記を1つ受け取る'}
                 </button>
-              </div>
-            ) : receivedDiaries.length === 0 ? (
-              <div className="card-base text-center">
-                <p className="text-secondary-text font-rounded">
-                  今日お届けする日記がありませんでした
-                </p>
               </div>
             ) : (
               <>
-                <h2 className="text-lg font-rounded font-bold text-primary-text mb-4 px-2">
-                  今日届いた日記
-                </h2>
+                <div className="flex justify-between items-center mb-4 px-2">
+                  <h2 className="text-lg font-rounded font-bold text-primary-text">
+                    今日受け取った日記 ({receivedDiaries.length})
+                  </h2>
+                  {receivedCount < 5 && (
+                    <button
+                      onClick={handleReceiveDiaries}
+                      disabled={fetchingDiaries || receivedCount >= 5}
+                      className="btn-secondary disabled:opacity-50 text-sm"
+                    >
+                      {fetchingDiaries ? '受け取り中...' : `もう1つ受け取る (${receivedCount}/5)`}
+                    </button>
+                  )}
+                </div>
                 {receivedDiaries.map((diary) => (
                   <article
                     key={diary.id}
