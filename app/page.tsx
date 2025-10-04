@@ -486,7 +486,7 @@ export default function Home() {
                       <p className="text-sm text-secondary-text font-rounded">
                         {new Date(diary.created_at).toLocaleDateString('ja-JP')}
                       </p>
-                      {diary.saved_count > 0 && (
+                      {diary.saved_count !== undefined && diary.saved_count > 0 && (
                         <p className="text-sm text-accent font-rounded">
                           {diary.saved_count}人が保存
                         </p>
